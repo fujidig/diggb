@@ -141,7 +141,9 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("pop {0}", REGNAME2[i]);
                         byte lsb = read(sp++);
                         byte msb = read(sp++);
-                        writereg2(i, (ushort)(lsb | msb << 8));
+                        ushort addr = (ushort)(lsb | msb << 8);
+                        if (insn == 0xf1) addr &= 0xfff0;
+                        writereg2(i, addr);
                         Console.Error.WriteLine("sp={0:x}", sp);
                         
                         break;
@@ -346,8 +348,8 @@ namespace ConsoleApp1
                         byte lsb = read(pc++);
                         byte msb = read(pc++);
                         ushort nn = (ushort)(lsb | (msb << 8));
-                        Console.Error.WriteLine("ld ({0:x}), A", nn);
-                        write(nn, readreg(7));
+                        Console.Error.WriteLine("ld A, ({0:x})", nn);
+                        writereg(7, read(nn));
                         break;
                     }
                 case 0x76:
@@ -439,9 +441,9 @@ namespace ConsoleApp1
                         byte a = readreg(7);
                         byte b = readreg(i);
                         byte result = (byte)(a - b);
-                        bool h = ((a & 0xf) - (b & 0xf)) <= 0;
+                        bool h = ((a & 0xf) - (b & 0xf)) < 0;
                         writereg(7, result);
-                        setflags(result == 0, false, h, (a - b) <= 0);
+                        setflags(result == 0, true, h, (a - b) < 0);
                         break;
                     }
                 case 0xd6:
@@ -451,9 +453,9 @@ namespace ConsoleApp1
                         byte a = readreg(7);
                         byte b = n;
                         byte result = (byte)(a - b);
-                        bool h = ((a & 0xf) - (b & 0xf)) <= 0;
+                        bool h = ((a & 0xf) - (b & 0xf)) < 0;
                         writereg(7, result);
-                        setflags(result == 0, false, h, (a - b) <= 0);
+                        setflags(result == 0, true, h, (a - b) < 0);
                         break;
                     }
                 case 0xe6:
@@ -538,7 +540,7 @@ namespace ConsoleApp1
                             int i = n - 0x18;
                             Console.Error.WriteLine("rr {0}", REGNAME[i]);
                             byte v = readreg(i);
-                            byte v2 = (byte)(v >> 1 | (v & 1) << 7);
+                            byte v2 = (byte)(v >> 1 | (getFlagC() ? 1 : 0) << 7);
                             writereg(i, v2);
                             setflags(v2 == 0, false, false, (v & 1) == 1);
                         }
@@ -561,11 +563,11 @@ namespace ConsoleApp1
                     }
                 case 0x1f:
                     {
-                        byte v = readreg(7);
-                        byte v2 = (byte)(v >> 1 | (v & 1) << 7);
-                        writereg(7, v2);
-                        setflags(v2 == 0, false, false, (v & 1) == 1);
                         Console.Error.WriteLine("rra");
+                        byte v = readreg(7);
+                        byte v2 = (byte)(v >> 1 | (getFlagC() ? 1 : 0) << 7);
+                        writereg(7, v2);
+                        setflags(false, false, false, (v & 1) == 1);
                         break;
                     }
                 case 0xee:
@@ -601,11 +603,14 @@ namespace ConsoleApp1
                         {
                             i = 4;
                         }
+                        Console.Error.WriteLine("add HL {0}", REGNAME2[i]);
                         ushort v = readreg2(2);
                         ushort v2 = readreg2(i);
+                        bool half_carry = (v & 0xfff) + (v2 & 0xfff) > 0xfff;
+                        bool carry = v + v2 > 0xffff;
                         writereg2(2, (ushort)(v + v2));
-                        setflags(((af >> 7) & 1) == 1, false, false, false);
-                        Console.Error.WriteLine("add HL {0}", REGNAME2[i]);
+
+                        setflags(((af >> 7) & 1) == 1, false, half_carry, carry);
                         break;
                     }
                 case 0xe9:
@@ -688,7 +693,53 @@ namespace ConsoleApp1
                         writereg(7, (byte)(readreg(7) ^ 0xff));
                         setflags(((af >> 7) & 1) == 1, true, true, ((af >> 4) & 1) == 1);
                         break;
-
+                    }
+                case 0x27:
+                    {
+                        Console.Error.WriteLine("daa");
+                        byte a = readreg(7);
+                        if (!getFlagN())
+                        {
+                            if (getFlagC() || a > 0x99)
+                            {
+                                a = (byte)(a + 0x60);
+                                setFlagC(true);
+                            }
+                            if (getFlagH() || (a & 0xf) > 0x9)
+                            {
+                                a = (byte)(a + 6);
+                            }
+                        }
+                        else
+                        {
+                            if (getFlagC())
+                            {
+                                a = (byte)(a - 0x60);
+                            }
+                            if (getFlagH())
+                            {
+                                a = (byte)(a - 6);
+                            }
+                        }
+                        writereg(7, a);
+                        setFlagZ(a == 0);
+                        setFlagH(false);
+                        break;
+                    }
+                case 0xe8:
+                    {
+                        sbyte n = (sbyte)read(pc++);
+                        Console.Error.WriteLine("add sp, {0}", n);
+                        int a = this.sp;
+                        int b = (ushort)n;
+                        bool half_carry = (a & 0x0f) + (b & 0x0f) > 0x0f;
+                        bool carry = (a & 0xff) + (b & 0xff) > 0xff;
+                        setFlagZ(false);
+                        setFlagN(false);
+                        setFlagH(half_carry);
+                        setFlagC(carry);
+                        sp = (ushort)(sp + n);
+                        break;
                     }
                 default:
                     Console.Error.WriteLine("unimplemented insn: {0:x}", insn);
@@ -701,19 +752,71 @@ namespace ConsoleApp1
             af = (ushort)((af & 0xff00) | f);
         }
 
+        void setFlagZ(bool z)
+        {
+            af = (ushort)((af & ~(1 << 7)) | (z ? 1 : 0) << 7);
+        }
+
+        void setFlagN(bool n)
+        {
+            af = (ushort)((af & ~(1 << 6)) | (n ? 1 : 0) << 6);
+        }
+
+        void setFlagH(bool h)
+        {
+            af = (ushort)((af & ~(1 << 5)) | (h ? 1 : 0) << 5);
+        }
+
+        void setFlagC(bool c)
+        {
+            af = (ushort)((af & ~(1 << 4)) | (c ? 1 : 0) << 4);
+        }
+
+        bool getFlagZ()
+        {
+            return ((af >> 7) & 1) == 1;
+        }
+
+        bool getFlagN()
+        {
+            return ((af >> 6) & 1) == 1;
+        }
+
+        bool getFlagH()
+        {
+            return ((af >> 5) & 1) == 1;
+        }
+
+        bool getFlagC()
+        {
+            return ((af >> 4) & 1) == 1;
+        }
+
         byte read(ushort addr)
         {
-            return mem[addr];
+            if (addr < 0xff00 || addr >= 0xff80)
+            {
+                return mem[addr];
+            } else
+            {
+                return 0;
+            }
         }
 
         void write(ushort addr, byte val)
         {
             Console.Error.WriteLine("({0:x}) <- {1:x}", addr, val);
-            mem[addr] = val;
             if (addr == 0xff01)
             {
                 Console.Write("{0}", Convert.ToChar(val).ToString());
                 Console.Error.Write ("<{0}>", Convert.ToChar(val).ToString());
+            } else if (0xff00 <= addr && addr < 0xff80)
+            {
+                // do nothing
+            }
+            else
+            {
+                mem[addr] = val;
             }
         }
 
