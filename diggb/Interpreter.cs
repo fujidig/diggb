@@ -56,6 +56,42 @@ namespace ConsoleApp1
                         }
                         break;
                     }
+                case 0xca:
+                    {
+                        byte lsb = read(pc++);
+                        byte msb = read(pc++);
+                        ushort nn = (ushort)(lsb | (msb << 8));
+                        Console.Error.WriteLine("jp z, {0:x}", nn);
+                        if (getFlagZ())
+                        {
+                            pc = nn;
+                        }
+                        break;
+                    }
+                case 0xd2:
+                    {
+                        byte lsb = read(pc++);
+                        byte msb = read(pc++);
+                        ushort nn = (ushort)(lsb | (msb << 8));
+                        Console.Error.WriteLine("jp nc, {0:x}", nn);
+                        if (!getFlagC())
+                        {
+                            pc = nn;
+                        }
+                        break;
+                    }
+                case 0xda:
+                    {
+                        byte lsb = read(pc++);
+                        byte msb = read(pc++);
+                        ushort nn = (ushort)(lsb | (msb << 8));
+                        Console.Error.WriteLine("jp c, {0:x}", nn);
+                        if (getFlagC())
+                        {
+                            pc = nn;
+                        }
+                        break;
+                    }
                 case 0xc3:
                     {
                         byte lsb = read(pc++);
@@ -121,6 +157,15 @@ namespace ConsoleApp1
                 case 0xc9:
                     {
                         Console.Error.WriteLine("ret");
+                        byte lsb = read(sp++);
+                        byte msb = read(sp++);
+                        pc = (ushort)(msb << 8 | lsb);
+                        break;
+                    }
+                case 0xd9:
+                    {
+                        Console.Error.WriteLine("reti");
+                        ime = true;
                         byte lsb = read(sp++);
                         byte msb = read(sp++);
                         pc = (ushort)(msb << 8 | lsb);
@@ -496,6 +541,34 @@ namespace ConsoleApp1
                         }
                         break;
                     }
+                case 0xcc:
+                    {
+                        byte lsb = read(pc++);
+                        byte msb = read(pc++);
+                        ushort nn = (ushort)(lsb | (msb << 8));
+                        Console.Error.WriteLine("call Z, ({0:x})", nn);
+                        if (getFlagZ())
+                        {
+                            write(--sp, (byte)(pc >> 8));
+                            write(--sp, (byte)(pc & 0xff));
+                            pc = nn;
+                        }
+                        break;
+                    }
+                case 0xdc:
+                    {
+                        byte lsb = read(pc++);
+                        byte msb = read(pc++);
+                        ushort nn = (ushort)(lsb | (msb << 8));
+                        Console.Error.WriteLine("call C, ({0:x})", nn);
+                        if (getFlagC())
+                        {
+                            write(--sp, (byte)(pc >> 8));
+                            write(--sp, (byte)(pc & 0xff));
+                            pc = nn;
+                        }
+                        break;
+                    }
                 case 0x0a: case 0x1a:
                     {
                         int i = insn >> 4;
@@ -654,12 +727,30 @@ namespace ConsoleApp1
                         break;
                     }
                 case 0x07:
-                    {   
+                    {
                         Console.Error.WriteLine("rlca");
                         byte v = readreg(7);
                         byte v2 = (byte)(v << 1 | (v >> 7));
                         writereg(7, v2);
                         setflags(v2 == 0, false, false, (v >> 7) == 1);
+                        break;
+                    }
+                case 0x17:
+                    {
+                        Console.Error.WriteLine("rla");
+                        byte v = readreg(7);
+                        byte v2 = (byte)(v << 1 | (getFlagC() ? 1 : 0));
+                        writereg(7, v2);
+                        setflags(v2 == 0, false, false, (v >> 7) == 1);
+                        break;
+                    }
+                case 0x0f:
+                    {
+                        Console.Error.WriteLine("rrca");
+                        byte v = readreg(7);
+                        byte v2 = (byte)(v >> 1 | (v & 1) << 7);
+                        writereg(7, v2);
+                        setflags(v2 == 0, false, false, (v & 1) == 1);
                         break;
                     }
                 case 0xfb:
@@ -779,6 +870,52 @@ namespace ConsoleApp1
                         setFlagN(true);
                         setFlagH(half_carry);
                         setFlagC(carry);
+                        break;
+                    }
+                case 0xf2:
+                    {
+                        Console.Error.WriteLine("ld a, (0xff00+c)");
+                        ushort addr = (ushort)(0xff00 | readreg(1));
+                        writereg(7, read(addr));
+                        break;
+                    }
+                case 0xe2:
+                    {
+                        Console.Error.WriteLine("ld (0xff00+c), a");
+                        ushort addr = (ushort)(0xff00 | readreg(1));
+                        write(addr, readreg(7));
+                        break;
+                    }
+                case 0x37:
+                    {
+                        Console.Error.WriteLine("scf");
+                        setFlagN(false);
+                        setFlagH(false);
+                        setFlagC(true);
+                        break;
+                    }
+                case 0x3f:
+                    {
+                        Console.Error.WriteLine("scf");
+                        setFlagN(false);
+                        setFlagH(false);
+                        setFlagC(!getFlagC());
+                        break;
+                    }
+                case 0xa0:
+                case 0xa1:
+                case 0xa2:
+                case 0xa3:
+                case 0xa4:
+                case 0xa5:
+                case 0xa6:
+                case 0xa7:
+                    {
+                        int i = insn & 0x7;
+                        Console.Error.WriteLine("and {0}", REGNAME[i]);
+                        byte result = (byte)(readreg(7) & readreg(i));
+                        writereg(7, result);
+                        setflags(result == 0, false, true, false);
                         break;
                     }
                 default:
