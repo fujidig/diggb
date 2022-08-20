@@ -583,7 +583,7 @@ namespace ConsoleApp1
                         hl ++;
                         break;
                     }
-                case 0x3a:
+                case 0x3a:  
                     {
                         Console.Error.WriteLine("ld A, (HL-)");
                         writereg(7, read(readreg2(2)));
@@ -593,29 +593,62 @@ namespace ConsoleApp1
                 case 0xcb:
                     {
                         byte n = read(pc++);
-                        if (0x30 <= n && n <= 0x37)
+                        int i = n & 7;
+                        int pos = (n >> 3) & 7;
+                        if (n <= 7)
                         {
-                            int i = n - 0x30;
-                            Console.Error.WriteLine("swap {0}", REGNAME[i]);
-                            byte v = readreg(i);
-                            writereg(i, (byte)(v >> 4 | v << 4));
+                            Console.Error.WriteLine("rlc {0}", REGNAME[i]);
+                            rlc(i);
                         }
-                        else if (0x38 <= n && n <= 0x3f)
+                        else if (0x08 <= n && n <= 0x0f)
                         {
-                            int i = n - 0x38;
-                            Console.Error.WriteLine("srl {0}", REGNAME[i]);
-                            byte v = readreg(i);
-                            writereg(i, (byte)(v >> 1));
-                            setflags((v >> 1) == 0, false, false, (v & 1) == 1);
+                            Console.Error.WriteLine("rrc {0}", REGNAME[i]);
+                            rrc(i);
+                        }
+                        else if (0x10 <= n && n <= 0x17)
+                        {
+                            Console.Error.WriteLine("rl {0}", REGNAME[i]);
+                            rl(i);
                         }
                         else if (0x18 <= n && n <= 0x1f)
                         {
-                            int i = n - 0x18;
                             Console.Error.WriteLine("rr {0}", REGNAME[i]);
-                            byte v = readreg(i);
-                            byte v2 = (byte)(v >> 1 | (getFlagC() ? 1 : 0) << 7);
-                            writereg(i, v2);
-                            setflags(v2 == 0, false, false, (v & 1) == 1);
+                            rr(i);
+                        }
+                        else if (0x20 <= n && n <= 0x27)
+                        {
+                            Console.Error.WriteLine("sla {0}", REGNAME[i]);
+                            sla(i);
+                        }
+                        else if (0x28 <= n && n <= 0x2f)
+                        {
+                            Console.Error.WriteLine("sra {0}", REGNAME[i]);
+                            sra(i);
+                        }
+                        else if (0x30 <= n && n <= 0x37)
+                        {
+                            Console.Error.WriteLine("swap {0}", REGNAME[i]);
+                            swap(i);
+                        }
+                        else if (0x38 <= n && n <= 0x3f)
+                        {
+                            Console.Error.WriteLine("srl {0}", REGNAME[i]);
+                            srl(i);
+                        }
+                        else if (0x40 <= n && n <= 0x7f)
+                        {
+                            Console.Error.WriteLine("bit {0}, {1}", pos, REGNAME[i]);
+                            bit(pos, i);
+                        }
+                        else if (0x80 <= n && n <= 0xbf)
+                        {
+                            Console.Error.WriteLine("res {0}, {1}", pos, REGNAME[i]);
+                            res(pos, i);
+                        }
+                        else if (0xc0 <= n && n <= 0xff)
+                        {
+                            Console.Error.WriteLine("set {0}, {1}", pos, REGNAME[i]);
+                            set(pos, i);
                         }
                         else
                         {
@@ -730,9 +763,9 @@ namespace ConsoleApp1
                     {
                         Console.Error.WriteLine("rlca");
                         byte v = readreg(7);
-                        byte v2 = (byte)(v << 1 | (v >> 7));
+                        byte v2 = (byte)((v << 1) | (v >> 7));
                         writereg(7, v2);
-                        setflags(v2 == 0, false, false, (v >> 7) == 1);
+                        setflags(false, false, false, (v >> 7) == 1);
                         break;
                     }
                 case 0x17:
@@ -741,7 +774,7 @@ namespace ConsoleApp1
                         byte v = readreg(7);
                         byte v2 = (byte)(v << 1 | (getFlagC() ? 1 : 0));
                         writereg(7, v2);
-                        setflags(v2 == 0, false, false, (v >> 7) == 1);
+                        setflags(false, false, false, (v >> 7) == 1);
                         break;
                     }
                 case 0x0f:
@@ -750,7 +783,7 @@ namespace ConsoleApp1
                         byte v = readreg(7);
                         byte v2 = (byte)(v >> 1 | (v & 1) << 7);
                         writereg(7, v2);
-                        setflags(v2 == 0, false, false, (v & 1) == 1);
+                        setflags(false, false, false, (v & 1) == 1);
                         break;
                     }
                 case 0xfb:
@@ -922,6 +955,112 @@ namespace ConsoleApp1
                     Console.Error.WriteLine("unimplemented insn: {0:x}", insn);
                     throw new Exception();
             }
+        }
+
+        void rlc(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)((orig << 1) | (orig >> 7));
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC(((orig >> 7) & 1) == 1);
+        }
+
+        void rrc(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)((orig >> 1) | (orig << 7));
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC((orig & 1) == 1);
+        }
+
+        void rl(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)((orig << 1) | (getFlagC() ? 1 : 0));
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC(((orig >> 7) & 1) == 1);
+        }
+
+        void rr(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)((orig >> 1) | (getFlagC() ? 1 : 0) << 7);
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC((orig & 1) == 1);
+        }
+
+        void sla(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)(orig << 1);
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC((orig & 0x80) > 0);
+        }
+
+        void sra(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)((orig >> 1) | (orig & 0x80));
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC((orig & 1) > 0);
+        }
+
+        void swap(int reg)
+        {
+            byte v = readreg(reg);
+            byte res = (byte)(v >> 4 | v << 4);
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC(false);
+        }
+
+        void srl(int reg)
+        {
+            byte orig = readreg(reg);
+            byte res = (byte)(orig >> 1);
+            writereg(reg, res);
+            setFlagZ(res == 0);
+            setFlagN(false);
+            setFlagH(false);
+            setFlagC((orig & 1) > 0);
+        }
+
+        void bit(int pos, int reg)
+        {
+            bool z = ((readreg(reg) >> pos) & 1) == 0;
+            setFlagZ(z);
+            setFlagN(false);
+            setFlagH(true);
+        }
+
+        void res(int pos, int reg)
+        {
+            writereg(reg, (byte)(readreg(reg) & ~(1 << pos)));
+        }
+
+        void set(int pos, int reg)
+        {
+            writereg(reg, (byte)(readreg(reg) | (1 << pos)));
         }
 
         void setflags(bool z, bool n, bool h, bool c) {
