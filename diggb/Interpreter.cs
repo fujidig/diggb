@@ -557,7 +557,7 @@ namespace ConsoleApp1
                         if (i == 3) i = 4;
                         Console.Error.WriteLine("dec {0}", REGNAME2[i]);
                         ushort orig = readreg2(i);
-                        ushort result = (byte)(orig - 1);
+                        ushort result = (ushort)(orig - 1);
                         writereg2(i, result);
                         break;
                     }
@@ -622,7 +622,7 @@ namespace ConsoleApp1
                     }
                 case 0xf8:
                     {
-                        byte n = read(pc++);
+                        sbyte n = (sbyte)read(pc++);
                         Console.Error.WriteLine("ld hl,sp+{0:x}", n);
                         writereg2(2, (ushort)(sp + n));
                         bool half_carry = (sp & 0x0f) + (n & 0x0f) > 0x0f;
@@ -739,6 +739,46 @@ namespace ConsoleApp1
                         setFlagH(half_carry);
                         setFlagC(carry);
                         sp = (ushort)(sp + n);
+                        break;
+                    }
+                case 0xde:
+                    {
+                        byte n = read(pc++);
+                        Console.Error.WriteLine("sbc A, {0}", n);
+                        int c = getFlagC() ? 1 : 0;
+                        int a = readreg(7);
+                        byte res = (byte)(a - n - c);
+                        bool half_carry = (a & 0xf) < (n & 0xf) + c;
+                        bool carry = a < n + c;
+                        writereg(7, res);
+                        setFlagZ(res == 0);
+                        setFlagN(true);
+                        setFlagH(half_carry);
+                        setFlagC(carry);
+                        break;
+                    }
+                case 0x98:
+                case 0x99:
+                case 0x9a:
+                case 0x9b:
+                case 0x9c:
+                case 0x9d:
+                case 0x9e:
+                case 0x9f:
+                    {
+                        int i = (insn & 0xf) - 8;
+                        Console.Error.WriteLine("sbc A, {0}", REGNAME[i]);
+                        int c = getFlagC() ? 1 : 0;
+                        int a = readreg(7);
+                        int n = readreg(i);
+                        byte res = (byte)(a - n - c);
+                        bool half_carry = (a & 0xf) < (n & 0xf) + c;
+                        bool carry = a < n + c;
+                        writereg(7, res);
+                        setFlagZ(res == 0);
+                        setFlagN(true);
+                        setFlagH(half_carry);
+                        setFlagC(carry);
                         break;
                     }
                 default:
