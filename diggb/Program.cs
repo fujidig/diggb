@@ -12,7 +12,7 @@ namespace ConsoleApp1
             byte[] buf = new byte[65536];
             fs.Read(buf, 0, Math.Min(fileSize, 65536));
             Interpreter intp = new Interpreter(buf);
-            intp.RunLoop();
+            intp.Run();
         }
     }
 }

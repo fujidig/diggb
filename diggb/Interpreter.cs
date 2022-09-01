@@ -12,6 +12,11 @@ namespace ConsoleApp1
         ushort sp;
         bool ime;
         byte[] mem;
+        byte tick;
+        bool halted;
+        Timer timer;
+        byte int_flag;
+        byte int_enable;
 
         static string[] REGNAME = { "B", "C", "D", "E", "H", "L", "(HL)", "A" };
         static string[] REGNAME2 = { "BC", "DE", "HL", "AF", "SP" };
@@ -20,21 +25,95 @@ namespace ConsoleApp1
         {
             mem = mem_;
             af = bc = de = hl = 0;
-            sp = 0; // 0xfffe;
+            sp = 0;
             pc = 0x100;
             ime = false;
+            tick = 0;
+            halted = false;
+            timer = new Timer();
         }
 
-        public void RunLoop()
+        public void Run()
         {
-            for (int i = 0;; i ++)
+            while (true)
             {
-                Console.Error.Write("{0}: ", i);
-                Run();
+                int elapsed_tick = 0;
+                while (elapsed_tick < 456 * (144 + 10)) {
+                    elapsed_tick += Step();
+                }
             }
         }
 
-        void Run()
+        public int Step()
+        {
+            int total_tick = 0;
+            tick = 0;
+            if (halted)
+            {
+                tick += 4;
+            }
+            else
+            {
+                FetchAndExec();
+            }
+            total_tick += tick;
+            update(tick);
+            if (ime)
+            {
+                tick = 0;
+                check_irqs();
+                update(tick);
+                total_tick += tick;
+            }
+            return total_tick;
+        }
+
+        void update(byte tick)
+        {
+            timer.update(tick);
+
+            if (timer.irq) {
+                int_flag |= 0x4;
+                timer.irq = false;
+            }
+        }
+
+        void check_irqs()
+        {
+            for (int i = 0; i <= 5; i ++)
+            {
+                bool irq = (int_flag & (1 << i)) > 0;
+                bool ie = (int_enable & (1 << i)) > 0;
+                if (irq && ie)
+                {
+                    call_isr(i);
+                    break;
+                }
+            }
+        }
+
+        void call_isr(int id)
+        {
+            int_flag &= (byte)~(1 << id);
+            ime = false;
+            halted = false;
+            ushort isr = 0;
+            switch (id)
+            {
+                case 0: isr = 0x40; break;
+                case 1: isr = 0x48; break;
+                case 2: isr = 0x50; break;
+                case 3: isr = 0x80; break;
+                case 4: isr = 0x70; break;
+            }
+            tick += 12;
+            write(--sp, (byte)(pc >> 8));
+            write(--sp, (byte)(pc & 0xff));
+            Console.Error.Write("call_isr {}, {0:x4}: ", id, isr);
+            pc = isr;
+        }
+
+        void FetchAndExec()
         {
             //Console.WriteLine("{0:x4} {1:x4} {2:x4} {3:x4} {4:x4} {5:x4}", pc, sp, af, bc, de, hl);
             Console.Error.Write("{0:x4}: ", pc);
@@ -53,6 +132,7 @@ namespace ConsoleApp1
                         if (((af >> 7) & 1) == 0)
                         {
                             pc = nn;
+                            tick += 4;
                         }
                         break;
                     }
@@ -65,6 +145,7 @@ namespace ConsoleApp1
                         if (getFlagZ())
                         {
                             pc = nn;
+                            tick += 4;
                         }
                         break;
                     }
@@ -77,6 +158,7 @@ namespace ConsoleApp1
                         if (!getFlagC())
                         {
                             pc = nn;
+                            tick += 4;
                         }
                         break;
                     }
@@ -89,6 +171,7 @@ namespace ConsoleApp1
                         if (getFlagC())
                         {
                             pc = nn;
+                            tick += 4;
                         }
                         break;
                     }
@@ -99,6 +182,7 @@ namespace ConsoleApp1
                         ushort nn = (ushort)(lsb | (msb << 8));
                         Console.Error.WriteLine("jp {0:x}", nn);
                         pc = nn;
+                        tick += 4;
                         break;
                     }
                 case 0xf3:
@@ -127,6 +211,7 @@ namespace ConsoleApp1
                         byte msb = read(pc++);
                         ushort nn = (ushort)(lsb | (msb << 8));
                         Console.Error.WriteLine("call ({0:x})", nn);
+                        tick += 4;
                         write(--sp, (byte)(pc >> 8));
                         write(--sp, (byte)(pc & 0xff));
                         pc = nn;
@@ -152,6 +237,7 @@ namespace ConsoleApp1
                         sbyte e = (sbyte)read(pc++);
                         Console.Error.WriteLine("jr {0}", e);
                         pc = (ushort)(pc + e);
+                        tick += 4;
                         break;
                     }
                 case 0xc9:
@@ -160,6 +246,7 @@ namespace ConsoleApp1
                         byte lsb = read(sp++);
                         byte msb = read(sp++);
                         pc = (ushort)(msb << 8 | lsb);
+                        tick += 4;
                         break;
                     }
                 case 0xd9:
@@ -169,6 +256,7 @@ namespace ConsoleApp1
                         byte lsb = read(sp++);
                         byte msb = read(sp++);
                         pc = (ushort)(msb << 8 | lsb);
+                        tick += 4;
                         break;
                     }
                 case 0xc5: case 0xd5: case 0xe5: case 0xf5:
@@ -176,6 +264,7 @@ namespace ConsoleApp1
                         int i = (insn >> 4) - 0xc;
                         Console.Error.WriteLine("push {0}", REGNAME2[i]);
                         ushort v = readreg2(i);
+                        tick += 4;
                         write(--sp, (byte)(v >> 8));
                         write(--sp, (byte)(v & 0xff));
                         break;
@@ -189,7 +278,6 @@ namespace ConsoleApp1
                         ushort addr = (ushort)(lsb | msb << 8);
                         if (insn == 0xf1) addr &= 0xfff0;
                         writereg2(i, addr);
-                        Console.Error.WriteLine("sp={0:x}", sp);
                         
                         break;
                     }
@@ -199,6 +287,7 @@ namespace ConsoleApp1
                         if (i == 3) i = 4;
                         Console.Error.WriteLine("inc {0}", REGNAME2[i]);
                         writereg2(i, (ushort)(readreg2(i) + 1));
+                        tick += 4;
                         break;
                     }
                 case 0x01: case 0x11: case 0x21: case 0x31:
@@ -243,28 +332,33 @@ namespace ConsoleApp1
                 case 0xc8:
                     {
                         Console.Error.WriteLine("ret Z");
+                        tick += 4;
                         if (((af >> 7) & 1) != 0)
                         {
                             byte lsb = read(sp++);
                             byte msb = read(sp++);
                             pc = (ushort)(msb << 8 | lsb);
+                            tick += 4;
                         }
                         break;
                     }
                 case 0xd8:
                     {
                         Console.Error.WriteLine("ret C");
+                        tick += 4;
                         if (((af >> 4) & 1) != 0)
                         {
                             byte lsb = read(sp++);
                             byte msb = read(sp++);
                             pc = (ushort)(msb << 8 | lsb);
+                            tick += 4;
                         }
                         break;
                     }
                 case 0xc0:
                     {
                         Console.Error.WriteLine("ret NZ");
+                        tick += 4;
                         if (((af >> 7) & 1) == 0)
                         {
                             byte lsb = read(sp++);
@@ -276,6 +370,7 @@ namespace ConsoleApp1
                 case 0xd0:
                     {
                         Console.Error.WriteLine("ret NC");
+                        tick += 4;
                         if (((af >> 4) & 1) == 0)
                         {
                             byte lsb = read(sp++);
@@ -341,6 +436,7 @@ namespace ConsoleApp1
                         if (((af >> 7) & 1) != 0)
                         {
                             pc = (ushort)(pc + e);
+                            tick += 4;
                         }
                         break;
                     }
@@ -351,6 +447,7 @@ namespace ConsoleApp1
                         if (((af >> 4) & 1) != 0)
                         {
                             pc = (ushort)(pc + e);
+                            tick += 4;
                         }
                         break;
                     }
@@ -360,6 +457,7 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("jr NZ, {0}", e);
                         if (((af >> 7) & 1) == 0) {
                             pc = (ushort)(pc + e);
+                            tick += 4;
                         }
                         break;
                     }
@@ -369,6 +467,7 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("jr NC, {0}", e);
                         if (((af >> 4) & 1) == 0) {
                             pc = (ushort)(pc + e);
+                            tick += 4;
                         }
                         break;
                     }
@@ -400,7 +499,10 @@ namespace ConsoleApp1
                 case 0x76:
                     {
                         Console.Error.WriteLine("halt");
-                        throw new Exception();
+                        if (ime) {
+                            halted = true;
+                        }
+                        break;
                     }
                 case 0x04: case 0x14: case 0x24: case 0x34:
                 case 0x0c: case 0x1c: case 0x2c: case 0x3c:
@@ -521,6 +623,7 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("call NZ, ({0:x})", nn);
                         if (((af >> 7) & 1) == 0)
                         {
+                            tick += 4;
                             write(--sp, (byte)(pc >> 8));
                             write(--sp, (byte)(pc & 0xff));
                             pc = nn;
@@ -535,6 +638,7 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("call NC, ({0:x})", nn);
                         if (((af >> 4) & 1) == 0)
                         {
+                            tick += 4;
                             write(--sp, (byte)(pc >> 8));
                             write(--sp, (byte)(pc & 0xff));
                             pc = nn;
@@ -549,6 +653,7 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("call Z, ({0:x})", nn);
                         if (getFlagZ())
                         {
+                            tick += 4;
                             write(--sp, (byte)(pc >> 8));
                             write(--sp, (byte)(pc & 0xff));
                             pc = nn;
@@ -563,6 +668,7 @@ namespace ConsoleApp1
                         Console.Error.WriteLine("call C, ({0:x})", nn);
                         if (getFlagC())
                         {
+                            tick += 4;
                             write(--sp, (byte)(pc >> 8));
                             write(--sp, (byte)(pc & 0xff));
                             pc = nn;
@@ -665,6 +771,7 @@ namespace ConsoleApp1
                         ushort orig = readreg2(i);
                         ushort result = (ushort)(orig - 1);
                         writereg2(i, result);
+                        tick += 4;
                         break;
                     }
                 case 0x1f:
@@ -715,7 +822,7 @@ namespace ConsoleApp1
                         bool half_carry = (v & 0xfff) + (v2 & 0xfff) > 0xfff;
                         bool carry = v + v2 > 0xffff;
                         writereg2(2, (ushort)(v + v2));
-
+                        tick += 4;
                         setflags(((af >> 7) & 1) == 1, false, half_carry, carry);
                         break;
                     }
@@ -724,21 +831,24 @@ namespace ConsoleApp1
                         ushort nn = readreg2(2);
                         Console.Error.WriteLine("jp (HL)");
                         pc = nn;
+                        tick += 4;
                         break;
                     }
                 case 0xf8:
                     {
                         sbyte n = (sbyte)read(pc++);
-                        Console.Error.WriteLine("ld hl,sp+{0:x}", n);
-                        writereg2(2, (ushort)(sp + n));
+                        Console.Error.WriteLine("ld hl,sp+  {0:x}", n);
+                        tick += 4;
                         bool half_carry = (sp & 0x0f) + (n & 0x0f) > 0x0f;
                         bool carry = (sp & 0xff) + (n & 0xff) > 0xff;
+                        writereg2(2, (ushort)(sp + n));
                         setflags(false, false, half_carry, carry);
                         break;
                     }
                 case 0xf9:
                     {
                         Console.Error.WriteLine("ld sp, hl");
+                        tick += 4;
                         writereg2(4, readreg2(2));
                         break;
                     }
@@ -789,6 +899,7 @@ namespace ConsoleApp1
                 case 0xfb:
                     {
                         Console.Error.WriteLine("ei");
+                        ime = false;
                         break;
                     }
                 case 0x10:
@@ -863,6 +974,7 @@ namespace ConsoleApp1
                         setFlagH(half_carry);
                         setFlagC(carry);
                         sp = (ushort)(sp + n);
+                        tick += 8;
                         break;
                     }
                 case 0xde:
@@ -1110,13 +1222,28 @@ namespace ConsoleApp1
 
         byte read(ushort addr)
         {
+            byte res;
+            if (0xff04 <= addr && addr <= 0xff07)
+            {
+                res = timer.read(addr);
+            }
+            if (addr == 0xff0f)
+            {
+                res = int_flag;
+            }
+            else if (addr == 0xffff)
+            {
+                res = int_enable;
+            }
             if (addr < 0xff00 || addr >= 0xff80)
             {
-                return mem[addr];
+                res = mem[addr];
             } else
             {
-                return 0;
+                res = 0;
             }
+            tick += 4;
+            return res;
         }
 
         void write(ushort addr, byte val)
@@ -1125,8 +1252,25 @@ namespace ConsoleApp1
             if (addr == 0xff01)
             {
                 Console.Write("{0}", Convert.ToChar(val).ToString());
-                Console.Error.Write ("<{0}>", Convert.ToChar(val).ToString());
-            } else if (0xff00 <= addr && addr < 0xff80)
+                Console.Error.Write("<{0}>", Convert.ToChar(val).ToString());
+            }
+            else if (0xff04 <= addr && addr <= 0xff07)
+            {
+                timer.write(addr, val);
+            }
+            else if (addr == 0xff0f)
+            {
+                int_flag = val;
+            }
+            else if (addr == 0xff0f)
+            {
+                int_flag = val;
+            }
+            else if (addr == 0xffff)
+            {
+                int_enable = val;
+            }
+            else if (0xff00 <= addr && addr < 0xff80)
             {
                 // do nothing
             }
@@ -1134,6 +1278,7 @@ namespace ConsoleApp1
             {
                 mem[addr] = val;
             }
+            tick += 4;
         }
 
         byte readreg(int i)
