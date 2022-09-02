@@ -80,7 +80,7 @@ namespace ConsoleApp1
 
         void check_irqs()
         {
-            for (int i = 0; i <= 5; i ++)
+            for (int i = 0; i <= 4; i ++)
             {
                 bool irq = (int_flag & (1 << i)) > 0;
                 bool ie = (int_enable & (1 << i)) > 0;
@@ -123,9 +123,7 @@ namespace ConsoleApp1
                     break;
                 case 0xc2:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("jp nz, {0:x}", nn);
                         if (((af >> 7) & 1) == 0)
                         {
@@ -136,9 +134,7 @@ namespace ConsoleApp1
                     }
                 case 0xca:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("jp z, {0:x}", nn);
                         if (getFlagZ())
                         {
@@ -149,9 +145,7 @@ namespace ConsoleApp1
                     }
                 case 0xd2:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("jp nc, {0:x}", nn);
                         if (!getFlagC())
                         {
@@ -162,9 +156,7 @@ namespace ConsoleApp1
                     }
                 case 0xda:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("jp c, {0:x}", nn);
                         if (getFlagC())
                         {
@@ -175,9 +167,7 @@ namespace ConsoleApp1
                     }
                 case 0xc3:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("jp {0:x}", nn);
                         pc = nn;
                         tick += 4;
@@ -189,9 +179,7 @@ namespace ConsoleApp1
                     break;  
                 case 0xea:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("ld ({0:x}), A", nn);
                         write(nn, (byte)(af >> 8));
                         break;
@@ -205,9 +193,7 @@ namespace ConsoleApp1
                     }
                 case 0xcd:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("call ({0:x})", nn);
                         tick += 4;
                         write(--sp, (byte)(pc >> 8));
@@ -266,9 +252,10 @@ namespace ConsoleApp1
                     {
                         int i = (insn >> 4) - 0xc;
                         Console.Error.WriteLine("pop {0}", REGNAME2[i]);
-                        byte lsb = read(sp++);
-                        byte msb = read(sp++);
-                        ushort addr = (ushort)(lsb | msb << 8);
+                        byte lsb = read(sp);
+                        byte msb = read((ushort)(sp + 1));
+                        sp += 2;
+                        ushort addr = (ushort)(lsb | (msb << 8));
                         if (insn == 0xf1) addr &= 0xfff0;
                         writereg2(i, addr);
                         
@@ -287,9 +274,7 @@ namespace ConsoleApp1
                     {
                         int i = (insn >> 4);
                         if (i == 3) i = 4;
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("ld {0}, {1:x}", REGNAME2[i], nn);
                         writereg2(i, nn);
                         break;
@@ -470,9 +455,7 @@ namespace ConsoleApp1
                     }
                 case 0xfa:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("ld A, ({0:x})", nn);
                         writereg(7, read(nn));
                         break;
@@ -598,9 +581,7 @@ namespace ConsoleApp1
                     }
                 case 0xc4:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("call NZ, ({0:x})", nn);
                         if (((af >> 7) & 1) == 0)
                         {
@@ -610,9 +591,7 @@ namespace ConsoleApp1
                     }
                 case 0xd4:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("call NC, ({0:x})", nn);
                         if (((af >> 4) & 1) == 0)
                         {
@@ -622,9 +601,7 @@ namespace ConsoleApp1
                     }
                 case 0xcc:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("call Z, ({0:x})", nn);
                         if (getFlagZ())
                         {
@@ -634,9 +611,7 @@ namespace ConsoleApp1
                     }
                 case 0xdc:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("call C, ({0:x})", nn);
                         if (getFlagC())
                         {
@@ -883,9 +858,7 @@ namespace ConsoleApp1
                     }
                 case 0x08:
                     {
-                        byte lsb = read(pc++);
-                        byte msb = read(pc++);
-                        ushort nn = (ushort)(lsb | (msb << 8));
+                        ushort nn = read_16bit_from_pc();
                         Console.Error.WriteLine("ld {0:x}, sp");
                         write(nn, (byte)(sp & 0xff));
                         write((ushort)(nn + 1), (byte)(sp >> 8));
@@ -1036,6 +1009,14 @@ namespace ConsoleApp1
                     Console.Error.WriteLine("unimplemented insn: {0:x}", insn);
                     throw new Exception();
             }
+        }
+
+        ushort read_16bit_from_pc()
+        {
+            byte lsb = read(pc);
+            byte msb = read((ushort)(pc+1));
+            pc += 2;
+            return (ushort)(lsb | (msb << 8));
         }
 
         void call(ushort addr)
