@@ -1227,7 +1227,7 @@ namespace ConsoleApp1
             {
                 res = timer.read(addr);
             }
-            if (addr == 0xff0f)
+            else if (addr == 0xff0f)
             {
                 res = int_flag;
             }
@@ -1235,10 +1235,11 @@ namespace ConsoleApp1
             {
                 res = int_enable;
             }
-            if (addr < 0xff00 || addr >= 0xff80)
+            else if (addr < 0xff00 || addr >= 0xff80)
             {
                 res = mem[addr];
-            } else
+            }
+            else
             {
                 res = 0;
             }
