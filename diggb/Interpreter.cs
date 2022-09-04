@@ -11,9 +11,11 @@ namespace ConsoleApp1
         ushort pc;
         ushort sp;
         bool ime;
-        byte[] mem;
         byte tick;
         bool halted;
+        Cartridge cartridge;
+        byte[] ram;
+        byte[] hram;
         Timer timer;
         byte int_flag;
         byte int_enable;
@@ -23,7 +25,7 @@ namespace ConsoleApp1
 
         public Interpreter(byte[] mem_)
         {
-            mem = mem_;
+            cartridge = new Cartridge(mem_);
             af = bc = de = hl = 0;
             sp = 0;
             pc = 0x100;
@@ -31,6 +33,8 @@ namespace ConsoleApp1
             tick = 0;
             halted = false;
             timer = new Timer();
+            ram = new byte[0x2000];
+            hram = new byte[0x7f];
         }
 
         public void Run()
@@ -1191,7 +1195,19 @@ namespace ConsoleApp1
         byte read(ushort addr)
         {
             byte res;
-            if (0xff04 <= addr && addr <= 0xff07)
+            if (addr <= 0x7fff)
+            {
+                res = cartridge.read(addr);
+            }
+            else if (0xc000 <= addr && addr <= 0xdfff)
+            {
+                res = ram[addr & 0x1fff];
+            }
+            else if (0xff80 <= addr && addr <= 0xfffe)
+            {
+                res = hram[addr & 0x7f];
+            }
+            else if (0xff04 <= addr && addr <= 0xff07)
             {
                 res = timer.read(addr);
             }
@@ -1202,10 +1218,6 @@ namespace ConsoleApp1
             else if (addr == 0xffff)
             {
                 res = int_enable;
-            }
-            else if (addr < 0xff00 || addr >= 0xff80)
-            {
-                res = mem[addr];
             }
             else
             {
@@ -1218,7 +1230,19 @@ namespace ConsoleApp1
         void write(ushort addr, byte val)
         {
             Console.Error.WriteLine("({0:x}) <- {1:x}", addr, val);
-            if (addr == 0xff01)
+            if (addr <= 0x7fff)
+            {
+                cartridge.write(addr, val);
+            }
+            else if (0xc000 <= addr && addr <= 0xdfff)
+            {
+                ram[addr & 0x1fff] = val;
+            }
+            else if (0xff80 <= addr && addr <= 0xfffe)
+            {
+                hram[addr & 0x7f] = val;
+            }
+            else if (addr == 0xff01)
             {
                 Console.Write("{0}", Convert.ToChar(val).ToString());
                 Console.Error.Write("<{0}>", Convert.ToChar(val).ToString());
@@ -1238,10 +1262,6 @@ namespace ConsoleApp1
             else if (0xff00 <= addr && addr < 0xff80)
             {
                 // do nothing
-            }
-            else
-            {
-                mem[addr] = val;
             }
             tick += 4;
         }
