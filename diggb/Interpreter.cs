@@ -70,7 +70,7 @@ namespace ConsoleApp1
 
         void update(byte tick)
         {
-            //Console.WriteLine("update: {0:d5} {1:x4}", timer.counter, pc);
+            //Console.WriteLine("update: {0:d5} {1:x4}", (ushort)(timer.counter + tick), pc);
             timer.update(tick);
 
             if (timer.irq) {
@@ -108,7 +108,7 @@ namespace ConsoleApp1
                 case 4: isr = 0x70; break;
             }
             tick += 8;
-            Console.Error.Write("call_isr {}, {0:x4}: ", id, isr);
+            Console.WriteLine("call_isr {}, {0:x4}: ", id, isr);
             call(isr);
         }
 
