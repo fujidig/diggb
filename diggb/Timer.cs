@@ -6,7 +6,7 @@ namespace ConsoleApp1
         byte tima;
         byte tma;
         byte tac;
-        ushort counter;
+        public ushort counter;
         public bool irq;
 
         public Timer()

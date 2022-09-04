@@ -70,6 +70,7 @@ namespace ConsoleApp1
 
         void update(byte tick)
         {
+            //Console.WriteLine("update: {0:d5} {1:x4}", timer.counter, pc);
             timer.update(tick);
 
             if (timer.irq) {
@@ -114,7 +115,7 @@ namespace ConsoleApp1
         void FetchAndExec()
         {
             //Console.WriteLine("{0:x4} {1:x4} {2:x4} {3:x4} {4:x4} {5:x4}", pc, sp, af, bc, de, hl);
-            Console.Error.Write("{0:x4}: ", pc);
+            //Console.Error.Write("{0:x4}: ", pc);
             byte insn = read(pc++);
             switch (insn)
             {
@@ -390,7 +391,7 @@ namespace ConsoleApp1
                         int i = (insn >> 3);
                         Console.Error.WriteLine("dec {0}", REGNAME[i]);
                         byte orig = readreg(i);
-                        byte result = (byte)(readreg(i) - 1);
+                        byte result = (byte)(orig - 1);
                         writereg(i, result);
                         setflags(result == 0, true, (orig & 0xf) == 0, ((af >> 4) & 1) != 0);
                         break;
@@ -775,7 +776,6 @@ namespace ConsoleApp1
                         ushort nn = readreg2(2);
                         Console.Error.WriteLine("jp (HL)");
                         pc = nn;
-                        tick += 4;
                         break;
                     }
                 case 0xf8:
@@ -1226,10 +1226,6 @@ namespace ConsoleApp1
             else if (0xff04 <= addr && addr <= 0xff07)
             {
                 timer.write(addr, val);
-            }
-            else if (addr == 0xff0f)
-            {
-                int_flag = val;
             }
             else if (addr == 0xff0f)
             {
