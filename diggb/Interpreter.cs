@@ -108,7 +108,7 @@ namespace ConsoleApp1
                 case 4: isr = 0x70; break;
             }
             tick += 8;
-            Console.WriteLine("call_isr {}, {0:x4}: ", id, isr);
+            Console.Error.WriteLine("call_isr {0}, {1:x4}: ", id, isr);
             call(isr);
         }
 
@@ -843,7 +843,7 @@ namespace ConsoleApp1
                 case 0xfb:
                     {
                         Console.Error.WriteLine("ei");
-                        ime = false;
+                        ime = true;
                         break;
                     }
                 case 0x10:

@@ -74,7 +74,7 @@ namespace ConsoleApp1
                         tima = res;
                     }
                 }
-                //Console.WriteLine("tac={0:x2} tima={1:x2} tma={2:x2} irq={3} counter={4}, counter_prev={5}, x={6}, y={7}, mask={8}, diff={9}", tac, tima, tma, irq ? 1 : 0, counter, counter_prev, x, y, mask, diff);
+                //Console.WriteLine("tac={0:x2} tima={1:x2} tma={2:x2} irq={3} counter={4} counter_prev={5} x={6} y={7} mask={8} diff={9}", tac, tima, tma, irq ? 1 : 0, counter, counter_prev, x, y, mask, diff);
             }
         }
     }
