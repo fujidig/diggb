@@ -112,7 +112,7 @@ namespace ConsoleApp1
                 case 4: isr = 0x70; break;
             }
             tick += 8;
-            Console.Error.WriteLine("call_isr {0}, {1:x4}: ", id, isr);
+            //debugPrint(String.Format("call_isr {0}, {1:x4}: ", id, isr));
             call(isr);
         }
 
@@ -124,12 +124,12 @@ namespace ConsoleApp1
             switch (insn)
             {
                 case 0x00:
-                    Console.Error.WriteLine("nop");
+                    debugPrint("nop");
                     break;
                 case 0xc2:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("jp nz, {0:x}", nn);
+                        debugPrint(String.Format("jp nz, {0:x}", nn));
                         if (((af >> 7) & 1) == 0)
                         {
                             pc = nn;
@@ -140,7 +140,7 @@ namespace ConsoleApp1
                 case 0xca:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("jp z, {0:x}", nn);
+                        debugPrint(String.Format("jp z, {0:x}", nn));
                         if (getFlagZ())
                         {
                             pc = nn;
@@ -151,7 +151,7 @@ namespace ConsoleApp1
                 case 0xd2:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("jp nc, {0:x}", nn);
+                        debugPrint(String.Format("jp nc, {0:x}", nn));
                         if (!getFlagC())
                         {
                             pc = nn;
@@ -162,7 +162,7 @@ namespace ConsoleApp1
                 case 0xda:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("jp c, {0:x}", nn);
+                        debugPrint(String.Format("jp c, {0:x}", nn));
                         if (getFlagC())
                         {
                             pc = nn;
@@ -173,33 +173,33 @@ namespace ConsoleApp1
                 case 0xc3:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("jp {0:x}", nn);
+                        debugPrint(String.Format("jp {0:x}", nn));
                         pc = nn;
                         tick += 4;
                         break;
                     }
                 case 0xf3:
-                    Console.Error.WriteLine("di");
+                    debugPrint("di");
                     ime = false;
                     break;  
                 case 0xea:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("ld ({0:x}), A", nn);
+                        debugPrint(String.Format("ld ({0:x}), A", nn));
                         write(nn, (byte)(af >> 8));
                         break;
                     }
                 case 0xe0:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("ldh ({0:x}), A", n);
+                        debugPrint(String.Format("ldh ({0:x}), A", n));
                         write((ushort)(0xff00 | n), (byte)(af >> 8));
                         break;
                     }
                 case 0xcd:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("call ({0:x})", nn);
+                        debugPrint(String.Format("call ({0:x})", nn));
                         tick += 4;
                         write(--sp, (byte)(pc >> 8));
                         write(--sp, (byte)(pc & 0xff));
@@ -217,27 +217,27 @@ namespace ConsoleApp1
                     {
                         int lhs = (insn >> 3) - 8;
                         int rhs = insn & 7;
-                        Console.Error.WriteLine("ld {0} {1}", REGNAME[lhs], REGNAME[rhs]);
+                        debugPrint(String.Format("ld {0} {1}", REGNAME[lhs], REGNAME[rhs]));
                         writereg(lhs, readreg(rhs));
                         break;
                     }
                 case 0x18:
                     {
                         sbyte e = (sbyte)read(pc++);
-                        Console.Error.WriteLine("jr {0}", e);
+                        debugPrint(String.Format("jr {0}", e));
                         pc = (ushort)(pc + e);
                         tick += 4;
                         break;
                     }
                 case 0xc9:
                     {
-                        Console.Error.WriteLine("ret");
+                        debugPrint("ret");
                         ret();
                         break;
                     }
                 case 0xd9:
                     {
-                        Console.Error.WriteLine("reti");
+                        debugPrint("reti");
                         ime = true;
                         ret();
                         break;
@@ -245,7 +245,7 @@ namespace ConsoleApp1
                 case 0xc5: case 0xd5: case 0xe5: case 0xf5:
                     {
                         int i = (insn >> 4) - 0xc;
-                        Console.Error.WriteLine("push {0}", REGNAME2[i]);
+                        debugPrint(String.Format("push {0}", REGNAME2[i]));
                         ushort v = readreg2(i);
                         sp -= 2;
                         tick += 4;
@@ -256,7 +256,7 @@ namespace ConsoleApp1
                 case 0xc1: case 0xd1: case 0xe1: case 0xf1:
                     {
                         int i = (insn >> 4) - 0xc;
-                        Console.Error.WriteLine("pop {0}", REGNAME2[i]);
+                        debugPrint(String.Format("pop {0}", REGNAME2[i]));
                         byte lsb = read(sp);
                         byte msb = read((ushort)(sp + 1));
                         sp += 2;
@@ -270,7 +270,7 @@ namespace ConsoleApp1
                     {
                         int i = (insn >> 4);
                         if (i == 3) i = 4;
-                        Console.Error.WriteLine("inc {0}", REGNAME2[i]);
+                        debugPrint(String.Format("inc {0}", REGNAME2[i]));
                         writereg2(i, (ushort)(readreg2(i) + 1));
                         tick += 4;
                         break;
@@ -280,14 +280,14 @@ namespace ConsoleApp1
                         int i = (insn >> 4);
                         if (i == 3) i = 4;
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("ld {0}, {1:x}", REGNAME2[i], nn);
+                        debugPrint(String.Format("ld {0}, {1:x}", REGNAME2[i], nn));
                         writereg2(i, nn);
                         break;
                     }
                 case 0xb0: case 0xb1: case 0xb2: case 0xb3: case 0xb4: case 0xb5: case 0xb6: case 0xb7:
                     {
                         int i = insn & 0x7;
-                        Console.Error.WriteLine("or {0}", REGNAME[i]);
+                        debugPrint(String.Format("or {0}", REGNAME[i]));
                         byte result = (byte)(readreg(7) | readreg(i));
                         writereg(7, result);
                         setflags(result == 0, false, false, false);
@@ -296,7 +296,7 @@ namespace ConsoleApp1
                 case 0xf6:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("or {0:x}", n);
+                        debugPrint(String.Format("or {0:x}", n));
                         byte result = (byte)(readreg(7) | n);
                         writereg(7, result);
                         setflags(result == 0, false, false, false);
@@ -306,7 +306,7 @@ namespace ConsoleApp1
 
                     {
                         int i = insn & 0x7;
-                        Console.Error.WriteLine("xor {0}", REGNAME[i]);
+                        debugPrint(String.Format("xor {0}", REGNAME[i]));
                         byte result = (byte)(readreg(7) ^ readreg(i));
                         writereg(7, result);
                         setflags(result == 0, false, false, false);
@@ -314,7 +314,7 @@ namespace ConsoleApp1
                     }
                 case 0xc8:
                     {
-                        Console.Error.WriteLine("ret Z");
+                        debugPrint("ret Z");
                         tick += 4;
                         if (((af >> 7) & 1) != 0)
                         {
@@ -324,7 +324,7 @@ namespace ConsoleApp1
                     }
                 case 0xd8:
                     {
-                        Console.Error.WriteLine("ret C");
+                        debugPrint("ret C");
                         tick += 4;
                         if (((af >> 4) & 1) != 0)
                         {
@@ -334,7 +334,7 @@ namespace ConsoleApp1
                     }
                 case 0xc0:
                     {
-                        Console.Error.WriteLine("ret NZ");
+                        debugPrint("ret NZ");
                         tick += 4;
                         if (((af >> 7) & 1) == 0)
                         {
@@ -344,7 +344,7 @@ namespace ConsoleApp1
                     }
                 case 0xd0:
                     {
-                        Console.Error.WriteLine("ret NC");
+                        debugPrint("ret NC");
                         tick += 4;
                         if (((af >> 4) & 1) == 0)
                         {
@@ -356,7 +356,7 @@ namespace ConsoleApp1
                     {
                         int i = (insn >> 4) * 2 + 1;
                         byte n = read(pc++);
-                        Console.Error.WriteLine("ld {0}, {1:x}", REGNAME[i], n);
+                        debugPrint(String.Format("ld {0}, {1:x}", REGNAME[i], n));
                         writereg(i, n);
                         break;
                     }
@@ -364,27 +364,27 @@ namespace ConsoleApp1
                 case 0xcf: case 0xdf: case 0xef: case 0xff:
                     {
                         int n = insn - 0xc7;
-                        Console.Error.WriteLine("rst {0:x}", n);
+                        debugPrint(String.Format("rst {0:x}", n));
                         call((ushort)n);
                         break;
                     }
                 case 0x02: case 0x12:
                     {
                         int i = insn >> 4;
-                        Console.Error.WriteLine("ld ({0}), A", REGNAME2[i]);
+                        debugPrint(String.Format("ld ({0}), A", REGNAME2[i]));
                         write(readreg2(i), readreg(7));
                         break;
                     }
                 case 0x22:
                     {
-                        Console.Error.WriteLine("ld (HL+), A");
+                        debugPrint("ld (HL+), A");
                         write(readreg2(2), readreg(7));
                         writereg2(2, (ushort)(readreg2(2) + 1));
                         break;
                     }
                 case 0x32:
                     {
-                        Console.Error.WriteLine("ld (HL-), A");
+                        debugPrint("ld (HL-), A");
                         write(readreg2(2), readreg(7));
                         writereg2(2, (ushort)(readreg2(2) - 1));
                         break;
@@ -393,7 +393,7 @@ namespace ConsoleApp1
                 case 0x0d: case 0x1d: case 0x2d: case 0x3d:
                     {
                         int i = (insn >> 3);
-                        Console.Error.WriteLine("dec {0}", REGNAME[i]);
+                        debugPrint(String.Format("dec {0}", REGNAME[i]));
                         byte orig = readreg(i);
                         byte result = (byte)(orig - 1);
                         writereg(i, result);
@@ -403,7 +403,7 @@ namespace ConsoleApp1
                 case 0x28:
                     {
                         sbyte e = (sbyte)read(pc++);
-                        Console.Error.WriteLine("jr Z, {0}", e);
+                        debugPrint(String.Format("jr Z, {0}", e));
                         if (((af >> 7) & 1) != 0)
                         {
                             pc = (ushort)(pc + e);
@@ -414,7 +414,7 @@ namespace ConsoleApp1
                 case 0x38:
                     {
                         sbyte e = (sbyte)read(pc++);
-                        Console.Error.WriteLine("jr C, {0}", e);
+                        debugPrint(String.Format("jr C, {0}", e));
                         if (((af >> 4) & 1) != 0)
                         {
                             pc = (ushort)(pc + e);
@@ -425,7 +425,7 @@ namespace ConsoleApp1
                 case 0x20:
                     {
                         sbyte e = (sbyte)read(pc++);
-                        Console.Error.WriteLine("jr NZ, {0}", e);
+                        debugPrint(String.Format("jr NZ, {0}", e));
                         if (((af >> 7) & 1) == 0) {
                             pc = (ushort)(pc + e);
                             tick += 4;
@@ -435,7 +435,7 @@ namespace ConsoleApp1
                 case 0x30:
                     {
                         sbyte e = (sbyte)read(pc++);
-                        Console.Error.WriteLine("jr NC, {0}", e);
+                        debugPrint(String.Format("jr NC, {0}", e));
                         if (((af >> 4) & 1) == 0) {
                             pc = (ushort)(pc + e);
                             tick += 4;
@@ -445,14 +445,14 @@ namespace ConsoleApp1
                 case 0xf0:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("ldh A, ({0:x})", n);
+                        debugPrint(String.Format("ldh A, ({0:x})", n));
                         writereg(7, read((ushort)(0xff00 | n)));
                         break;
                     }
                 case 0xfe:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("cp {0}", n);
+                        debugPrint(String.Format("cp {0}", n));
                         byte input = readreg(7);
                         byte result = (byte)(input - n);
                         setflags(result == 0, true, (input & 0xf) < (n & 0xf), input < n);
@@ -461,13 +461,13 @@ namespace ConsoleApp1
                 case 0xfa:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("ld A, ({0:x})", nn);
+                        debugPrint(String.Format("ld A, ({0:x})", nn));
                         writereg(7, read(nn));
                         break;
                     }
                 case 0x76:
                     {
-                        Console.Error.WriteLine("halt");
+                        debugPrint("halt");
                         if (ime) {
                             halted = true;
                         }
@@ -477,7 +477,7 @@ namespace ConsoleApp1
                 case 0x0c: case 0x1c: case 0x2c: case 0x3c:
                     {
                         int i = (insn >> 3);
-                        Console.Error.WriteLine("inc {0}", REGNAME[i]);
+                        debugPrint(String.Format("inc {0}", REGNAME[i]));
                         byte input = readreg(i);
                         byte result = (byte)(input + 1);
                         bool h = (input & 0xf) == 0xf;
@@ -489,7 +489,7 @@ namespace ConsoleApp1
                     {
                         int i = (insn >> 4) * 2;
                         byte n = read(pc++);
-                        Console.Error.WriteLine("ld {0}, {1}", REGNAME[i], n);
+                        debugPrint(String.Format("ld {0}, {1}", REGNAME[i], n));
                         writereg(i, n);
                         break;
                     }
@@ -503,7 +503,7 @@ namespace ConsoleApp1
                 case 0x87:
                     {
                         int i = insn & 7;
-                        Console.Error.WriteLine("add {0}", REGNAME[i]);
+                        debugPrint(String.Format("add {0}", REGNAME[i]));
                         byte input = readreg(7);
                         byte n = readreg(i);
                         byte result = (byte)(input + n);
@@ -522,7 +522,7 @@ namespace ConsoleApp1
                 case 0x8f:
                     {
                         int i = insn & 7;
-                        Console.Error.WriteLine("adc {0}", REGNAME[i]);
+                        debugPrint(String.Format("adc {0}", REGNAME[i]));
                         byte input = readreg(7);
                         byte n = readreg(i);
                         int c = (af >> 4) & 1;
@@ -535,7 +535,7 @@ namespace ConsoleApp1
                 case 0xc6:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("add {0}", n);
+                        debugPrint(String.Format("add {0}", n));
                         byte input = readreg(7);
                         byte result = (byte)(input + n);
                         bool h = (byte)((input & 0xf) + (n & 0xf)) >= 0x10;
@@ -553,7 +553,7 @@ namespace ConsoleApp1
                 case 0x97:
                     {
                         int i = insn & 7;
-                        Console.Error.WriteLine("sub {0}", REGNAME[i]);
+                        debugPrint(String.Format("sub {0}", REGNAME[i]));
                         byte a = readreg(7);
                         byte b = readreg(i);
                         byte result = (byte)(a - b);
@@ -565,7 +565,7 @@ namespace ConsoleApp1
                 case 0xd6:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("sub {0}", n);
+                        debugPrint(String.Format("sub {0}", n));
                         byte a = readreg(7);
                         byte b = n;
                         byte result = (byte)(a - b);
@@ -577,7 +577,7 @@ namespace ConsoleApp1
                 case 0xe6:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("and {0}", n);
+                        debugPrint(String.Format("and {0}", n));
                         byte input = readreg(7);
                         byte result = (byte)(input & n);
                         writereg(7, result);
@@ -587,7 +587,7 @@ namespace ConsoleApp1
                 case 0xc4:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("call NZ, ({0:x})", nn);
+                        debugPrint(String.Format("call NZ, ({0:x})", nn));
                         if (((af >> 7) & 1) == 0)
                         {
                             call(nn);
@@ -597,7 +597,7 @@ namespace ConsoleApp1
                 case 0xd4:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("call NC, ({0:x})", nn);
+                        debugPrint(String.Format("call NC, ({0:x})", nn));
                         if (((af >> 4) & 1) == 0)
                         {
                             call(nn);
@@ -607,7 +607,7 @@ namespace ConsoleApp1
                 case 0xcc:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("call Z, ({0:x})", nn);
+                        debugPrint(String.Format("call Z, ({0:x})", nn));
                         if (getFlagZ())
                         {
                             call(nn);
@@ -617,7 +617,7 @@ namespace ConsoleApp1
                 case 0xdc:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("call C, ({0:x})", nn);
+                        debugPrint(String.Format("call C, ({0:x})", nn));
                         if (getFlagC())
                         {
                             call(nn);
@@ -627,20 +627,20 @@ namespace ConsoleApp1
                 case 0x0a: case 0x1a:
                     {
                         int i = insn >> 4;
-                        Console.Error.WriteLine("ld A, ({0})", REGNAME2[i]);
+                        debugPrint(String.Format("ld A, ({0})", REGNAME2[i]));
                         writereg(7, read(readreg2(i)));
                         break;
                     }
                 case 0x2a:
                     {
-                        Console.Error.WriteLine("ld A, (HL+)");
+                        debugPrint("ld A, (HL+)");
                         writereg(7, read(readreg2(2)));
                         hl ++;
                         break;
                     }
                 case 0x3a:  
                     {
-                        Console.Error.WriteLine("ld A, (HL-)");
+                        debugPrint("ld A, (HL-)");
                         writereg(7, read(readreg2(2)));
                         hl --;
                         break;
@@ -652,62 +652,62 @@ namespace ConsoleApp1
                         int pos = (n >> 3) & 7;
                         if (n <= 7)
                         {
-                            Console.Error.WriteLine("rlc {0}", REGNAME[i]);
+                            debugPrint(String.Format("rlc {0}", REGNAME[i]));
                             rlc(i);
                         }
                         else if (0x08 <= n && n <= 0x0f)
                         {
-                            Console.Error.WriteLine("rrc {0}", REGNAME[i]);
+                            debugPrint(String.Format("rrc {0}", REGNAME[i]));
                             rrc(i);
                         }
                         else if (0x10 <= n && n <= 0x17)
                         {
-                            Console.Error.WriteLine("rl {0}", REGNAME[i]);
+                            debugPrint(String.Format("rl {0}", REGNAME[i]));
                             rl(i);
                         }
                         else if (0x18 <= n && n <= 0x1f)
                         {
-                            Console.Error.WriteLine("rr {0}", REGNAME[i]);
+                            debugPrint(String.Format("rr {0}", REGNAME[i]));
                             rr(i);
                         }
                         else if (0x20 <= n && n <= 0x27)
                         {
-                            Console.Error.WriteLine("sla {0}", REGNAME[i]);
+                            debugPrint(String.Format("sla {0}", REGNAME[i]));
                             sla(i);
                         }
                         else if (0x28 <= n && n <= 0x2f)
                         {
-                            Console.Error.WriteLine("sra {0}", REGNAME[i]);
+                            debugPrint(String.Format("sra {0}", REGNAME[i]));
                             sra(i);
                         }
                         else if (0x30 <= n && n <= 0x37)
                         {
-                            Console.Error.WriteLine("swap {0}", REGNAME[i]);
+                            debugPrint(String.Format("swap {0}", REGNAME[i]));
                             swap(i);
                         }
                         else if (0x38 <= n && n <= 0x3f)
                         {
-                            Console.Error.WriteLine("srl {0}", REGNAME[i]);
+                            debugPrint(String.Format("srl {0}", REGNAME[i]));
                             srl(i);
                         }
                         else if (0x40 <= n && n <= 0x7f)
                         {
-                            Console.Error.WriteLine("bit {0}, {1}", pos, REGNAME[i]);
+                            debugPrint(String.Format("bit {0}, {1}", pos, REGNAME[i]));
                             bit(pos, i);
                         }
                         else if (0x80 <= n && n <= 0xbf)
                         {
-                            Console.Error.WriteLine("res {0}, {1}", pos, REGNAME[i]);
+                            debugPrint(String.Format("res {0}, {1}", pos, REGNAME[i]));
                             res(pos, i);
                         }
                         else if (0xc0 <= n && n <= 0xff)
                         {
-                            Console.Error.WriteLine("set {0}, {1}", pos, REGNAME[i]);
+                            debugPrint(String.Format("set {0}, {1}", pos, REGNAME[i]));
                             set(pos, i);
                         }
                         else
                         {
-                            Console.Error.WriteLine("unimplemented insn: cb {0:x}", n);
+                            debugPrint(String.Format("unimplemented insn: cb {0:x}", n));
                             throw new Exception();
                         }
                         break;
@@ -716,7 +716,7 @@ namespace ConsoleApp1
                     {
                         int i = (insn >> 4);
                         if (i == 3) i = 4;
-                        Console.Error.WriteLine("dec {0}", REGNAME2[i]);
+                        debugPrint(String.Format("dec {0}", REGNAME2[i]));
                         ushort orig = readreg2(i);
                         ushort result = (ushort)(orig - 1);
                         writereg2(i, result);
@@ -725,7 +725,7 @@ namespace ConsoleApp1
                     }
                 case 0x1f:
                     {
-                        Console.Error.WriteLine("rra");
+                        debugPrint("rra");
                         byte v = readreg(7);
                         byte v2 = (byte)(v >> 1 | (getFlagC() ? 1 : 0) << 7);
                         writereg(7, v2);
@@ -735,7 +735,7 @@ namespace ConsoleApp1
                 case 0xee:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("xor {0:x}", n);
+                        debugPrint(String.Format("xor {0:x}", n));
                         byte v = readreg(7);
                         byte v2 = (byte)(v ^ n);
                         writereg(7, v2);
@@ -745,7 +745,7 @@ namespace ConsoleApp1
                 case 0xce:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("adc {0:x}", n);
+                        debugPrint(String.Format("adc {0:x}", n));
                         int c = ((af >> 4) & 1);
                         byte v = readreg(7);
                         byte v2 = (byte)(v + n + c);
@@ -765,7 +765,7 @@ namespace ConsoleApp1
                         {
                             i = 4;
                         }
-                        Console.Error.WriteLine("add HL {0}", REGNAME2[i]);
+                        debugPrint(String.Format("add HL {0}", REGNAME2[i]));
                         ushort v = readreg2(2);
                         ushort v2 = readreg2(i);
                         bool half_carry = (v & 0xfff) + (v2 & 0xfff) > 0xfff;
@@ -778,14 +778,14 @@ namespace ConsoleApp1
                 case 0xe9:
                     {
                         ushort nn = readreg2(2);
-                        Console.Error.WriteLine("jp (HL)");
+                        debugPrint("jp (HL)");
                         pc = nn;
                         break;
                     }
                 case 0xf8:
                     {
                         sbyte n = (sbyte)read(pc++);
-                        Console.Error.WriteLine("ld hl,sp+  {0:x}", n);
+                        debugPrint(String.Format("ld hl,sp+  {0:x}", n));
                         tick += 4;
                         bool half_carry = (sp & 0x0f) + (n & 0x0f) > 0x0f;
                         bool carry = (sp & 0xff) + (n & 0xff) > 0xff;
@@ -795,7 +795,7 @@ namespace ConsoleApp1
                     }
                 case 0xf9:
                     {
-                        Console.Error.WriteLine("ld sp, hl");
+                        debugPrint("ld sp, hl");
                         tick += 4;
                         writereg2(4, readreg2(2));
                         break;
@@ -810,7 +810,7 @@ namespace ConsoleApp1
                 case 0xbf:
                     {
                         int i = insn & 7;
-                        Console.Error.WriteLine("cp {0}", REGNAME[i]);
+                        debugPrint(String.Format("cp {0}", REGNAME[i]));
                         int a = (int)readreg(7);
                         int val = (int)readreg(i);
                         int v = a - val;
@@ -819,7 +819,7 @@ namespace ConsoleApp1
                     }
                 case 0x07:
                     {
-                        Console.Error.WriteLine("rlca");
+                        debugPrint("rlca");
                         byte v = readreg(7);
                         byte v2 = (byte)((v << 1) | (v >> 7));
                         writereg(7, v2);
@@ -828,7 +828,7 @@ namespace ConsoleApp1
                     }
                 case 0x17:
                     {
-                        Console.Error.WriteLine("rla");
+                        debugPrint("rla");
                         byte v = readreg(7);
                         byte v2 = (byte)(v << 1 | (getFlagC() ? 1 : 0));
                         writereg(7, v2);
@@ -837,7 +837,7 @@ namespace ConsoleApp1
                     }
                 case 0x0f:
                     {
-                        Console.Error.WriteLine("rrca");
+                        debugPrint("rrca");
                         byte v = readreg(7);
                         byte v2 = (byte)(v >> 1 | (v & 1) << 7);
                         writereg(7, v2);
@@ -846,7 +846,7 @@ namespace ConsoleApp1
                     }
                 case 0xfb:
                     {
-                        Console.Error.WriteLine("ei");
+                        debugPrint("ei");
                         ime = true;
                         break;
                     }
@@ -854,7 +854,7 @@ namespace ConsoleApp1
                     {
                         if (read(pc++) == 0)
                         {
-                            Console.Error.WriteLine("stop 0");
+                            debugPrint("stop 0");
                             break;
                         } else {
                             throw new Exception("invalid argument of stop");
@@ -863,21 +863,21 @@ namespace ConsoleApp1
                 case 0x08:
                     {
                         ushort nn = read_16bit_from_pc();
-                        Console.Error.WriteLine("ld {0:x}, sp");
+                        debugPrint("ld {0:x}, sp");
                         write(nn, (byte)(sp & 0xff));
                         write((ushort)(nn + 1), (byte)(sp >> 8));
                         break;
                     }
                 case 0x2f:
                     {
-                        Console.Error.WriteLine("cpl");
+                        debugPrint("cpl");
                         writereg(7, (byte)(readreg(7) ^ 0xff));
                         setflags(((af >> 7) & 1) == 1, true, true, ((af >> 4) & 1) == 1);
                         break;
                     }
                 case 0x27:
                     {
-                        Console.Error.WriteLine("daa");
+                        debugPrint("daa");
                         byte a = readreg(7);
                         if (!getFlagN())
                         {
@@ -910,7 +910,7 @@ namespace ConsoleApp1
                 case 0xe8:
                     {
                         sbyte n = (sbyte)read(pc++);
-                        Console.Error.WriteLine("add sp, {0}", n);
+                        debugPrint(String.Format("add sp, {0}", n));
                         int a = this.sp;
                         int b = (ushort)n;
                         bool half_carry = (a & 0x0f) + (b & 0x0f) > 0x0f;
@@ -926,7 +926,7 @@ namespace ConsoleApp1
                 case 0xde:
                     {
                         byte n = read(pc++);
-                        Console.Error.WriteLine("sbc A, {0}", n);
+                        debugPrint(String.Format("sbc A, {0}", n));
                         int c = getFlagC() ? 1 : 0;
                         int a = readreg(7);
                         byte res = (byte)(a - n - c);
@@ -949,7 +949,7 @@ namespace ConsoleApp1
                 case 0x9f:
                     {
                         int i = (insn & 0xf) - 8;
-                        Console.Error.WriteLine("sbc A, {0}", REGNAME[i]);
+                        debugPrint(String.Format("sbc A, {0}", REGNAME[i]));
                         int c = getFlagC() ? 1 : 0;
                         int a = readreg(7);
                         int n = readreg(i);
@@ -965,21 +965,21 @@ namespace ConsoleApp1
                     }
                 case 0xf2:
                     {
-                        Console.Error.WriteLine("ld a, (0xff00+c)");
+                        debugPrint("ld a, (0xff00+c)");
                         ushort addr = (ushort)(0xff00 | readreg(1));
                         writereg(7, read(addr));
                         break;
                     }
                 case 0xe2:
                     {
-                        Console.Error.WriteLine("ld (0xff00+c), a");
+                        debugPrint("ld (0xff00+c), a");
                         ushort addr = (ushort)(0xff00 | readreg(1));
                         write(addr, readreg(7));
                         break;
                     }
                 case 0x37:
                     {
-                        Console.Error.WriteLine("scf");
+                        debugPrint("scf");
                         setFlagN(false);
                         setFlagH(false);
                         setFlagC(true);
@@ -987,7 +987,7 @@ namespace ConsoleApp1
                     }
                 case 0x3f:
                     {
-                        Console.Error.WriteLine("scf");
+                        debugPrint("scf");
                         setFlagN(false);
                         setFlagH(false);
                         setFlagC(!getFlagC());
@@ -1003,16 +1003,21 @@ namespace ConsoleApp1
                 case 0xa7:
                     {
                         int i = insn & 0x7;
-                        Console.Error.WriteLine("and {0}", REGNAME[i]);
+                        debugPrint(String.Format("and {0}", REGNAME[i]));
                         byte result = (byte)(readreg(7) & readreg(i));
                         writereg(7, result);
                         setflags(result == 0, false, true, false);
                         break;
                     }
                 default:
-                    Console.Error.WriteLine("unimplemented insn: {0:x}", insn);
+                    debugPrint(String.Format("unimplemented insn: {0:x}", insn));
                     throw new Exception();
             }
+        }
+
+        void debugPrint(string str)
+        {
+            //Console.Error.WriteLine(str));
         }
 
         ushort read_16bit_from_pc()
@@ -1229,7 +1234,7 @@ namespace ConsoleApp1
 
         void write(ushort addr, byte val)
         {
-            Console.Error.WriteLine("({0:x}) <- {1:x}", addr, val);
+            //debugPrint(String.Format("({0:x}) <- {1:x}", addr, val));
             if (addr <= 0x7fff)
             {
                 cartridge.write(addr, val);
